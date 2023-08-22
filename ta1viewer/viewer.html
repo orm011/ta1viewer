@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIT Extraction Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+    <style>
+        #canvasWrapper {
+            position: relative;
+        }
+
+        #pdfCanvas {
+            border: 1px solid black;
+        }
+
+        #highlightBox {
+            position: absolute;
+            border: 2px solid red; /* or any desired color */
+            background-color: rgba(255,0,0,0.2); /* Red with transparency */
+            pointer-events: none; /* Make sure the bounding box doesn't interfere with interactions */
+        }
+
+        #body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="canvasWrapper">
+    <canvas id="pdfCanvas"></canvas>
+    <div id="highlightBox"></div>
+</div>
+
+<script>
+    function visualize_pdf_bbox(url, pageno, box, scale, cb){
+        pdfjsLib.getDocument(url).promise.then(function(pdf) {
+        // Render the first page (change the number to render a different page)
+        pdf.getPage(pageno).then(function(page) {
+            const viewport = page.getViewport({ scale: scale });        
+         // Log the shape (dimensions) of the page
+            console.log('Scale, Width, Height = ', scale, viewport.width, viewport.height);
+   
+            const canvas = document.getElementById('pdfCanvas');
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            // Render PDF page into canvas context
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            let render_task = page.render(renderContext);
+
+            max_size = Math.max(viewport.width, viewport.height);
+            // xDD uses 1920px for the longer side, and boxes are in that scale.
+            let factor = max_size / 1920; 
+            
+            render_task.promise.then(function() {
+                // After rendering, setup the bounding box
+                const highlightBox = document.getElementById('highlightBox');                
+                let scaled_box = box.map((v, i) => Math.round(v * factor));
+                let [left, top, right, bottom] = scaled_box;
+
+                let width = right - left;
+                let height = bottom - top;
+
+                highlightBox.style.left = `${left}px`;
+                highlightBox.style.top = `${top}px`;
+                highlightBox.style.width = `${width}px`;
+                highlightBox.style.height = `${height}px`;
+
+            });
+
+            // notify parent of view size so it sizes accordingly
+            // Send the height of the document to the parent window
+            cb(document.body.scrollWidth, document.body.scrollHeight);
+            // cb(viewport.width, viewport.height);
+
+        });
+
+        }); 
+    }
+
+    // pass this in from container iframe
+    window.addEventListener('message', (event) => {
+    let args = event.data
+    console.log('receiver handler:', event, args)
+
+      if (args == null){
+        return;
+      }
+
+      let cb = function(width, height) {
+            window.parent.postMessage({
+                height: height,
+                width: width,
+                iframe_id: args.iframe_id,
+            }, '*'); 
+      }
+
+      visualize_pdf_bbox(args.url, args.pageno, args.box, args.scale, cb);
+    })
+ 
+</script>
+
+</body>
+</html>
