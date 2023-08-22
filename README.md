@@ -1,2 +1,2 @@
 # ta1viewer
-just some viewer tool for complex output
+just some viewer tools for complex intermediates in TA1 askem
