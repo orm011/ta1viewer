@@ -1,22 +1,60 @@
 
-def display_pdf_bbox(pdf_url, pageno, box,  http_server_host='http://localhost', 
-                     scale = 1.,
-                      http_server_port=8000):
+import os
+import base64
+import pypdf
+import io
+
+def _get_viewer_data_url(html_path):
+    with open(html_path, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+
+    # Convert the HTML content to base64
+    base64_encoded_html = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
+
+    # Construct the data URL
+    data_url = f"data:text/html;base64,{base64_encoded_html}"
+    return data_url
+
+
+def get_page_subset(pdf_file, pages=[]):
+    ''' gets only the pages in the list pages, or all pages if pages is empty, 
+        and returns a pdf file object with only those pages. 
+        Helps avoid slow load times into notebook when you only want to visualize one or a single pages.
+    '''
+    reader = pypdf.PdfReader(pdf_file)
+    if pages is []:
+        ps = reader.pages
+    else:
+        ps = [reader.pages[i] for i in pages]
+    # Create a writer object
+    writer = pypdf.PdfWriter()
+    # Write the page to the writer object
+    for page0 in ps:
+        writer.add_page(page0)
+    # Close the writer object
+    b = io.BytesIO()
+    writer.write(b)
+    b.seek(0)
+    return b
+
+def _get_pdf_data_url(pdf_file):
+    # Convert the HTML content to base64
+    base64_encoded_pdf = base64.b64encode(pdf_file.read()).decode("utf-8")
+    data_url = f"data:application/pdf;base64,{base64_encoded_pdf}"
+    return data_url   
+
+
+def display_pdf_bbox(pdf_path, pageno, box, 
+                     scale = 1.):
     """
         pdf_path is relative to this webserver starting dir.
             as is the viewer url.
             box is in [left, top, right, bottom] format, which is also as given in xDD parquet outputs
 
-        scale: scale the image to fill this fraction of the cell width (1 = fill width, 0.5 = half width, etc.)
-
-        assumes a local http server is running at project root:
-            you can set it up with cd <mitaskem>/viz/ && python -m http.server
-            (default port is 8000)
-            plus, start your jupyter notebook server with 
-            --ServerApp.allow_origin='*'  if you see no output in the notebook
+        scale: scale the image to fill this fraction of the cell width (1 = fill width, 0.5 = half width, etc)
 
         example:
-        visualize_pdf_bbox(pdf_url='sidarthe/sidarthe.pdf', pageno=1, box=[737.0, 594.0, 1343.0, 1661.0], scale=2)
+        visualize_pdf_bbox(pdf_path='./sidarthe/sidarthe.pdf', pageno=1, box=[737.0, 594.0, 1343.0, 1661.0], scale=2)
     """
     import json
     from IPython.display import HTML
@@ -25,10 +63,18 @@ def display_pdf_bbox(pdf_url, pageno, box,  http_server_host='http://localhost',
 
     pageno = int(pageno)
     box = [int(n) for n in list(box)]
+                          
+    ## pass data directly to the iframe
+    dir = os.path.dirname(os.path.abspath(__file__))
+    viewer_path = str(os.path.join(dir, 'viewer.html'))
+    viewer_url = _get_viewer_data_url(viewer_path)
 
+
+    pdf_bytes = get_page_subset(open(pdf_path, 'rb'), pages=[pageno-1])
+    pdf_url = _get_pdf_data_url(pdf_bytes)
     args = {
         'url': pdf_url,
-        'pageno': pageno,
+        'pageno': 1,
         'box': box,
         'scale': scale,
     }
@@ -36,9 +82,7 @@ def display_pdf_bbox(pdf_url, pageno, box,  http_server_host='http://localhost',
     iframe_id = f'pdfviz_{random_id}'
     args['iframe_id'] = iframe_id
     args_json = json.dumps(args)
-                          
-    ## if transcript object is notpass data directly to the iframe
-    viewer_url = f'{http_server_host}:{http_server_port}/viewer.html'
+
     
     html = f'''<div>
                 <iframe
@@ -48,11 +92,6 @@ def display_pdf_bbox(pdf_url, pageno, box,  http_server_host='http://localhost',
                 </iframe>
                 <script>
                     function sizeHandler(event){{
-                        if (event.origin !== "{http_server_host}:{http_server_port}") {{
-                            console.log('ignoring origin', event.origin)
-                            return; // some other origin: ignore
-                        }}
-
                         console.log('parent received', event);
                         let args = event.data;
                         if (args.iframe_id !== "{iframe_id}") {{
