@@ -66,12 +66,16 @@ def display_pdf_bbox(pdf_path, pageno, box,
     box = [int(n) for n in list(box)]
                           
     ## pass data directly to the iframe
-    # dir = os.path.dirname(os.path.abspath(__file__))
-    # viewer_path = str(os.path.join(dir, 'viewer.html'))
-    # viewer_url = _get_viewer_data_url(viewer_path)
+    dir = os.path.dirname(os.path.abspath(__file__))
+    viewer_path = str(os.path.join(dir, 'viewer.html'))
 
-
-    viewer_url = f'http://localhost:{http_server_port}/viewer.html'
+    with open(viewer_path, 'r', encoding='utf-8') as file:
+        html_content = file.read()
+        # Convert the HTML content to base64
+        base64_encoded_html = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
+    
+    #viewer_data_url = _get_viewer_data_url(viewer_path)
+    #viewer_url = f'http://localhost:{http_server_port}/viewer.html'
 
     pdf_bytes = get_page_subset(open(pdf_path, 'rb'), pages=[pageno-1])
     pdf_url = _get_pdf_data_url(pdf_bytes)
@@ -90,17 +94,16 @@ def display_pdf_bbox(pdf_path, pageno, box,
     html = f'''<div>
                 <iframe
                     id="{iframe_id}" 
-                    src="{viewer_url}"
                     sandbox='allow-same-origin allow-scripts'>
                 </iframe>
                 <script>
-                    console.log('within iframe script')
-
+                    function init (){{
+                    console.log('within iframe script 2')
                     function sizeHandler(event){{
                         console.log('size handler', event);
                         let args = event.data;
-                        if (event.origin !== "http://localhost:{http_server_port}") {{
-                            console.log('ignoring origin', event.origin)
+                        if (event.origin !== window.origin) {{
+                            console.log('ignoring origin', event.origin, window.origin)
                             return; // some other origin: ignore
                         }}
 
@@ -135,6 +138,17 @@ def display_pdf_bbox(pdf_path, pageno, box,
                         
                         iframeWindow.postMessage(data,'*');
                     }};
+
+                    console.log('setting iframe content.')
+                    let viewer_html = atob("{base64_encoded_html}");
+                    let iframe = document.getElementById("{iframe_id}");
+                    let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
+
+                    iframeDocument.open();
+                    iframeDocument.write(viewer_html);
+                    iframeDocument.close();
+                    }}
+                    init();
                 </script>
             </div>
             '''
