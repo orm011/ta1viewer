@@ -34,6 +34,7 @@
 </div>
 
 <script>
+    console.log('within viewer app')
     function visualize_pdf_bbox(url, pageno, box, scale, cb){
         pdfjsLib.getDocument(url).promise.then(function(pdf) {
         // Render the first page (change the number to render a different page)

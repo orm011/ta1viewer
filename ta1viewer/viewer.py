@@ -1,8 +1,12 @@
 
 import os
 import base64
-import pypdf
+import json
+import random
+import string
 import io
+
+import pypdf
 
 def _get_viewer_data_url(html_path):
     with open(html_path, 'r', encoding='utf-8') as file:
@@ -45,7 +49,7 @@ def _get_pdf_data_url(pdf_file):
 
 
 def display_pdf_bbox(pdf_path, pageno, box, 
-                     scale = 1.):
+                     scale = 1., http_server_port=8000):
     """
         pdf_path is relative to this webserver starting dir.
             as is the viewer url.
@@ -54,12 +58,9 @@ def display_pdf_bbox(pdf_path, pageno, box,
         scale: scale the image to fill this fraction of the cell width (1 = fill width, 0.5 = half width, etc)
 
         example:
-        visualize_pdf_bbox(pdf_path='./sidarthe/sidarthe.pdf', pageno=1, box=[737.0, 594.0, 1343.0, 1661.0], scale=2)
+        visualize_pdf_bbox(pdf_path='./ sidarthe/sidarthe.pdf', pageno=1, box=[737.0, 594.0, 1343.0, 1661.0], scale=2)
     """
-    import json
     from IPython.display import HTML
-    import random
-    import string
 
     pageno = int(pageno)
     box = [int(n) for n in list(box)]
@@ -69,6 +70,9 @@ def display_pdf_bbox(pdf_path, pageno, box,
     viewer_path = str(os.path.join(dir, 'viewer.html'))
     viewer_url = _get_viewer_data_url(viewer_path)
 
+
+    viewer_url = f'http://localhost:{http_server_port}/viewer.html'
+    print(viewer_url)
 
     pdf_bytes = get_page_subset(open(pdf_path, 'rb'), pages=[pageno-1])
     pdf_url = _get_pdf_data_url(pdf_bytes)
@@ -81,7 +85,7 @@ def display_pdf_bbox(pdf_path, pageno, box,
     random_id = ''.join(random.choices(population=string.ascii_letters, k=8))
     iframe_id = f'pdfviz_{random_id}'
     args['iframe_id'] = iframe_id
-    args_json = json.dumps(args)
+    args_json = json.dumps(args, indent=2)
 
     
     html = f'''<div>
@@ -91,9 +95,16 @@ def display_pdf_bbox(pdf_path, pageno, box,
                     sandbox='allow-same-origin allow-scripts'>
                 </iframe>
                 <script>
+                    console.log('within iframe script')
+
                     function sizeHandler(event){{
-                        console.log('parent received', event);
+                        console.log('size handler', event);
                         let args = event.data;
+                        if (event.origin !== "http://localhost:{http_server_port}") {{
+                            console.log('ignoring origin', event.origin)
+                            return; // some other origin: ignore
+                        }}
+
                         if (args.iframe_id !== "{iframe_id}") {{
                             console.log('ignoring message from other iframe', args.iframe_id)                    
                             return; // some other iframe
@@ -114,7 +125,10 @@ def display_pdf_bbox(pdf_path, pageno, box,
                    window.addEventListener('message', sizeHandler);
 
                     document.getElementById("{iframe_id}").onload = () => {{
+                        console.log('loaded iframe')
+                        let iframe = document.getElementById("{iframe_id}")
                         var iframeWindow = document.getElementById("{iframe_id}").contentWindow;
+
                         let data = {args_json}
                 
                         // postMessage to send the data to the iframe
