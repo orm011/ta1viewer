@@ -93,60 +93,59 @@ def display_pdf_bbox(pdf_path, pageno, box,
     
     html = f'''<div>
                 <iframe
-                    id="{iframe_id}" 
-                    sandbox='allow-same-origin allow-scripts'>
+                    id="{iframe_id}">
                 </iframe>
                 <script>
                     function init (){{
-                    console.log('within iframe script 2')
-                    function sizeHandler(event){{
-                        console.log('size handler', event);
-                        let args = event.data;
-                        if (event.origin !== window.origin) {{
-                            console.log('ignoring origin', event.origin, window.origin)
-                            return; // some other origin: ignore
+                        console.log('within iframe script 2')
+                        function sizeHandler(event){{
+                            console.log('size handler', event);
+                            let args = event.data;
+                            if (event.origin !== window.origin) {{
+                                console.log('ignoring origin', event.origin, window.origin)
+                                return; // some other origin: ignore
+                            }}
+
+                            if (args.iframe_id !== "{iframe_id}") {{
+                                console.log('ignoring message from other iframe', args.iframe_id)                    
+                                return; // some other iframe
+                            }}
+
+                            // console.log('size handler for iframe: ', "{iframe_id}", sizeHandler)
+                            let iframe = document.getElementById("{iframe_id}")
+                            iframe.width = args.width + 16;
+                            iframe.height = args.height + 16;
+
+                            // removes itself once this is done so we don't have a leak of 
+                            // lots of handlers firing every time
+
+                            window.removeEventListener('message', sizeHandler);
+                            // console.log('ran and removed size handler for iframe: ', "{iframe_id}", sizeHandler)
                         }}
 
-                        if (args.iframe_id !== "{iframe_id}") {{
-                            console.log('ignoring message from other iframe', args.iframe_id)                    
-                            return; // some other iframe
-                        }}
+                    window.addEventListener('message', sizeHandler);
 
-                        // console.log('size handler for iframe: ', "{iframe_id}", sizeHandler)
-                        let iframe = document.getElementById("{iframe_id}")
-                        iframe.width = args.width + 16;
-                        iframe.height = args.height + 16;
+                        document.getElementById("{iframe_id}").onload = () => {{
+                            console.log('loaded iframe')
+                            let iframe = document.getElementById("{iframe_id}")
+                            var iframeWindow = document.getElementById("{iframe_id}").contentWindow;
 
-                        // removes itself once this is done so we don't have a leak of 
-                        // lots of handlers firing every time
+                            let data = {args_json}
+                    
+                            // postMessage to send the data to the iframe
+                            console.log('sender', window.location.origin)
+                            
+                            iframeWindow.postMessage(data,'*');
+                        }};
 
-                        window.removeEventListener('message', sizeHandler);
-                        // console.log('ran and removed size handler for iframe: ', "{iframe_id}", sizeHandler)
-                    }}
+                        console.log('setting iframe content.')
+                        let viewer_html = atob("{base64_encoded_html}");
+                        let iframe = document.getElementById("{iframe_id}");
+                        let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
 
-                   window.addEventListener('message', sizeHandler);
-
-                    document.getElementById("{iframe_id}").onload = () => {{
-                        console.log('loaded iframe')
-                        let iframe = document.getElementById("{iframe_id}")
-                        var iframeWindow = document.getElementById("{iframe_id}").contentWindow;
-
-                        let data = {args_json}
-                
-                        // postMessage to send the data to the iframe
-                        console.log('sender', window.location.origin)
-                        
-                        iframeWindow.postMessage(data,'*');
-                    }};
-
-                    console.log('setting iframe content.')
-                    let viewer_html = atob("{base64_encoded_html}");
-                    let iframe = document.getElementById("{iframe_id}");
-                    let iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
-
-                    iframeDocument.open();
-                    iframeDocument.write(viewer_html);
-                    iframeDocument.close();
+                        iframeDocument.open();
+                        iframeDocument.write(viewer_html);
+                        iframeDocument.close();
                     }}
                     init();
                 </script>
