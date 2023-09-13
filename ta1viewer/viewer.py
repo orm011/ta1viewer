@@ -66,13 +66,12 @@ def display_pdf_bbox(pdf_path, pageno, box,
     box = [int(n) for n in list(box)]
                           
     ## pass data directly to the iframe
-    dir = os.path.dirname(os.path.abspath(__file__))
-    viewer_path = str(os.path.join(dir, 'viewer.html'))
-    viewer_url = _get_viewer_data_url(viewer_path)
+    # dir = os.path.dirname(os.path.abspath(__file__))
+    # viewer_path = str(os.path.join(dir, 'viewer.html'))
+    # viewer_url = _get_viewer_data_url(viewer_path)
 
 
     viewer_url = f'http://localhost:{http_server_port}/viewer.html'
-    print(viewer_url)
 
     pdf_bytes = get_page_subset(open(pdf_path, 'rb'), pages=[pageno-1])
     pdf_url = _get_pdf_data_url(pdf_bytes)
