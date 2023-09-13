@@ -24,8 +24,7 @@ def get_box_data(xdd_df, n):
 
 ## example of displaying 
 def display_extraction(xdd_df, entity):
-    import IPython.display as display
-    from IPython.display import HTML
+    from IPython.display import HTML, display
 
     display(entity['payload'])
     mentions_dict = dict(list(xdd_df.groupby('page_num')))
