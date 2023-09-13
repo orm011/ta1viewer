@@ -11,6 +11,7 @@ readme = "README.md"
 python = ">=3.8"
 pypdf = "^3"
 ipykernel = "^6"
+fuzzywuzzy = ">=0.18"
 
 [build-system]
 requires = ["poetry-core"]
