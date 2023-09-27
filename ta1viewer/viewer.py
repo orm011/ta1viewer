@@ -5,7 +5,6 @@ import json
 import random
 import string
 import io
-
 import pypdf
 
 def _get_viewer_data_url(html_path):
@@ -49,7 +48,7 @@ def _get_pdf_data_url(pdf_file):
 
 
 def display_pdf_bbox(pdf_path, pageno, box, 
-                     scale = 1., http_server_port=8000):
+                     scale = 1.):
     """
         pdf_path is relative to this webserver starting dir.
             as is the viewer url.
@@ -74,9 +73,6 @@ def display_pdf_bbox(pdf_path, pageno, box,
         # Convert the HTML content to base64
         base64_encoded_html = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
     
-    #viewer_data_url = _get_viewer_data_url(viewer_path)
-    #viewer_url = f'http://localhost:{http_server_port}/viewer.html'
-
     pdf_bytes = get_page_subset(open(pdf_path, 'rb'), pages=[pageno-1])
     pdf_url = _get_pdf_data_url(pdf_bytes)
     args = {
@@ -97,6 +93,11 @@ def display_pdf_bbox(pdf_path, pageno, box,
                 </iframe>
                 <script>
                     function init (){{
+                    function captureHTML() {{
+                        // let capturedHTML = document.getElementById('{iframe_id}').contentWindow.document.;
+                        IPython.notebook.kernel.execute('stored_html = "<h1> hello </h1>"');
+                    }}
+
                         console.log('within iframe script 2')
                         function sizeHandler(event){{
                             console.log('size handler', event);
@@ -109,7 +110,7 @@ def display_pdf_bbox(pdf_path, pageno, box,
                             if (args.iframe_id !== "{iframe_id}") {{
                                 console.log('ignoring message from other iframe', args.iframe_id)                    
                                 return; // some other iframe
-                            }}
+                            }}  
 
                             // console.log('size handler for iframe: ', "{iframe_id}", sizeHandler)
                             let iframe = document.getElementById("{iframe_id}")
@@ -119,8 +120,10 @@ def display_pdf_bbox(pdf_path, pageno, box,
                             // removes itself once this is done so we don't have a leak of 
                             // lots of handlers firing every time
 
+                            captureHTML();
+
                             window.removeEventListener('message', sizeHandler);
-                            // console.log('ran and removed size handler for iframe: ', "{iframe_id}", sizeHandler)
+                            console.log('ran and removed size handler for iframe: ', "{iframe_id}", sizeHandler)
                         }}
 
                     window.addEventListener('message', sizeHandler);
@@ -147,6 +150,8 @@ def display_pdf_bbox(pdf_path, pageno, box,
                         iframeDocument.write(viewer_html);
                         iframeDocument.close();
                     }}
+
+
                     init();
                 </script>
             </div>
