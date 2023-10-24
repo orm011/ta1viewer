@@ -1,34 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>JSONEditor</title>
+    <title>JSONEditorWidget</title>
+
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+
+      #jsoneditor {
+        /* define a custom theme color and font size */
+        /* --jse-theme-color: #ec1897;
+        --jse-theme-color-highlight: #f553b5;
+        --jse-font-size: 24px;
+        --jse-font-size-mono: 24px; */
+        /* height: 600px; */
+      }
+    </style>
   </head>
+
   <body>
     <div id="jsoneditor"></div>
 
     <script type="module">
-    //   import { JSONEditor } from 'vanilla-jsoneditor'
-    import { JSONEditor } from 'https://cdn.jsdelivr.net/npm/vanilla-jsoneditor/index.js'
+      import { JSONEditor } from 'https://cdn.jsdelivr.net/npm/vanilla-jsoneditor/index.js'
 
-      // Or use it through a CDN (not recommended for use in production):
-      // import { JSONEditor } from 'https://unpkg.com/vanilla-jsoneditor/index.js'
-      let content = {
-        text: undefined,
-        json: {
-          greeting: 'Hello World'
-        }
-      }
+      function visualize_json(json_str, width, height){
 
-      const editor = new JSONEditor({
-        target: document.getElementById('jsoneditor'),
-        props: {
-          content,
-          onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
-            // content is an object { json: JSONValue } | { text: string }
-            console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult })
-            content = updatedContent
+        let content = null;
+        try {
+          let json = JSON.parse(json_str);
+          content = {
+            json: json
+          }
+        } catch (e) {
+          console.log('error parsing json, using text', e);
+          content = {
+            text: json_str
           }
         }
+        
+        let ed = document.getElementById('jsoneditor')
+        ed.style.width = width;
+        ed.style.height = height;
+
+        const editor = new JSONEditor({
+          target: document.getElementById('jsoneditor'),
+          props: {
+            content,
+            onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+              // content is an object { json: JSONValue } | { text: string }
+              console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult })
+              content = updatedContent
+            }
+          }
+        })
+
+    }
+
+        // pass this in from container iframe
+      window.addEventListener('message', (event) => {
+      let args = event.data
+      console.log('receiver handler:', event, args)
+
+        if (args == null){
+          return;
+        }
+
+        let ed = document.getElementById('jsoneditor')
+        visualize_json(args.json_str, args.width, args.height);
       })
 
       // use methods get, set, update, and onChange to get data in or out of the editor.
